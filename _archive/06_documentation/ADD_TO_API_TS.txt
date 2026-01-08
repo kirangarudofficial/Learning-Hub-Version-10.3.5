@@ -1,0 +1,29 @@
+// ADD THIS CODE TO frontend/src/services/api.ts
+// INSERT AFTER line 306 (after mediaApi export) and BEFORE line 308 (// Utility functions)
+
+// Notifications API (Real-time notifications)
+export const notificationsApi = {
+  getNotifications: (params?: { page?: number; limit?: number; unreadOnly?: boolean }) =>
+    apiClient.get('/notifications/realtime', { params }),
+  
+  getUnreadCount: () =>
+    apiClient.get('/notifications/realtime/unread-count'),
+  
+  markAsRead: (notificationId: string) =>
+    apiClient.patch(`/notifications/realtime/${notificationId}/read`),
+  
+  markAllAsRead: () =>
+    apiClient.post('/notifications/realtime/mark-all-read'),
+  
+  deleteNotification: (notificationId: string) =>
+    apiClient.delete(`/notifications/realtime/${notificationId}`),
+  
+  getPreferences: () =>
+    apiClient.get('/notifications/preferences'),
+  
+  updatePreferences: (preferences: Record<string, boolean>) =>
+    apiClient.put('/notifications/preferences', preferences),
+  
+  resetPreferences: () =>
+    apiClient.post('/notifications/preferences/reset'),
+};

@@ -1,0 +1,25 @@
+/**
+ * Jenkinsfile for Full Platform Deployment (Frontend + Backend)
+ * Version: 2.0 (Updated January 2026)
+ * Deploys both frontend and all backend microservices
+ */
+@Library('microservices-deployment') _
+
+// Configuration parameters
+def platformConfig = [
+    nodeVersion: '22',  // Updated to Node 22 LTS (2026)
+    frontendBuildDir: 'dist',
+    backendServices: [],  // Empty array = deploy all services
+    registry: env.DOCKER_REGISTRY ?: 'docker.io',
+    registryCredentials: 'docker-registry-credentials',  // Jenkins  credential ID
+    tag: "v1.0.${BUILD_NUMBER}",
+    environment: params.ENVIRONMENT ?: 'staging',
+    runTests: true,
+    runLint: true,
+    prismaGenerate: true,
+    notificationChannel: 'slack',  // Email, Slack, or Teams
+    notificationWebhook: env.SLACK_WEBHOOK_URL
+]
+
+// Deploy full microservices platform
+deployMicroservices(platformConfig)

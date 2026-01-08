@@ -1,0 +1,22 @@
+/**
+ * Jenkinsfile for Backend Microservices Deployment
+ * Version: 2.0 (Updated January 2026)
+ * Uses shared library for deployment with proper error handling
+ */
+@Library('microservices-deployment') _
+
+// Configuration parameters
+def backendConfig = [
+    nodeVersion: '22',  // Updated to Node 22 LTS (2026)
+    services: [],  // Empty array = deploy all services
+    registry: env.DOCKER_REGISTRY ?: 'docker.io',
+    registryCredentials: 'docker-registry-credentials',  // Jenkins credential ID
+    tag: "v1.0.${BUILD_NUMBER}",
+    environment: params.ENVIRONMENT ?: 'staging',
+    runTests: true,
+    runLint: true,
+    prismaGenerate: true
+]
+
+// Deploy backend services
+deployBackend(backendConfig)

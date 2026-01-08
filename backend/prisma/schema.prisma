@@ -1,0 +1,287 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ENUMS
+enum Role {
+  USER
+  ADMIN
+  INSTRUCTOR
+}
+
+enum CourseLevel {
+  Beginner
+  Intermediate
+  Advanced
+}
+
+enum LessonType {
+  video
+  text
+  quiz
+  assignment
+}
+
+// MODELS
+
+model User {
+  id                String           @id @default(cuid())
+  email             String           @unique
+  name              String
+  avatar            String?
+  passwordHash      String? // For custom auth, not needed for providers like Auth0/Clerk
+  role              Role             @default(USER)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  enrollments             Enrollment[]
+  reviews                 Review[]
+  progress                UserProgress[]
+  notes                   Note[]
+  instructorProfile       Instructor?
+  lessonProgress          LessonProgress[]
+  notificationPreferences UserNotificationPreferences?
+  notifications           Notification[]
+
+model Instructor {
+  id       String   @id @default(cuid())
+  bio      String?
+  rating   Float?
+  students Int?
+
+  // Relation to User (one-to-one)
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+
+  // Relation to Courses (one-to-many)
+  courses Course[]
+}
+
+model Course {
+  id               String         @id @default(cuid())
+  title            String
+  description      String
+  image            String?
+  price            Float
+  originalPrice    Float?
+  rating           Float          @default(0)
+  reviewsCount     Int            @default(0)
+  duration         String?
+  studentsCount    Int            @default(0) // FIXED: Changed from String? to Int
+  level            CourseLevel
+  category         String
+  badge            String?
+  whatYouWillLearn String[]
+  requirements     String[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Relations
+  instructor   Instructor     @relation(fields: [instructorId], references: [id])
+  instructorId String
+
+  curriculum  CourseModule[]
+  enrollments Enrollment[]
+  reviews     Review[]
+  progress    UserProgress[]
+
+  // Performance indices
+  @@index([instructorId])
+  @@index([category])
+  @@index([level])
+  @@index([createdAt])
+}
+
+model CourseModule {
+  id       String   @id @default(cuid())
+  title    String
+  duration String?
+
+  // Relation to Course (many-to-one)
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+
+  // Relation to Lessons (one-to-many)
+  lessons Lesson[]
+}
+
+model Lesson {
+  id       String         @id @default(cuid())
+  title    String
+  duration String?
+  type     LessonType
+  videoUrl String?
+  content  String?
+  isFree   Boolean        @default(false)
+
+  // Relation to Module (many-to-one)
+  module   CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId String
+
+  // Relations
+  lessonProgress LessonProgress[]
+  notes          Note[]
+}
+
+// Join table for the many-to-many relationship between User and Course
+model Enrollment {
+  enrolledAt DateTime @default(now())
+
+  // Relations
+  user     User   @relation(fields: [userId], references: [id])
+  userId   String
+  course   Course @relation(fields: [courseId], references: [id])
+  courseId String
+
+  @@id([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user     User   @relation(fields: [userId], references: [id])
+  userId   String
+  course   Course @relation(fields: [courseId], references: [id])
+  courseId String
+
+  @@unique([userId, courseId]) // A user can only review a course once
+  @@index([courseId])
+  @@index([userId])
+}
+
+model UserProgress {
+  id                 String   @id @default(cuid())
+  progressPercentage Float    @default(0)
+  lastAccessed       DateTime @updatedAt
+
+  // Relations
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  timestamp Float? // Video timestamp
+  createdAt DateTime @default(now())
+
+  // Relations
+  user     User   @relation(fields: [userId], references: [id])
+  userId   String
+  lesson   Lesson @relation(fields: [lessonId], references: [id])
+  lessonId String
+}
+
+// Many-to-many join table for lesson completion tracking
+model LessonProgress {
+  userId      String
+  lessonId    String
+  completedAt DateTime @default(now())
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@id([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+// User notification preferences for real-time notifications
+model UserNotificationPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Course notifications
+  newCourseContent      Boolean @default(true)
+  courseUpdates         Boolean @default(true)
+  courseScheduleChanges Boolean @default(true)
+  
+  // Assignment & Assessment notifications
+  assignmentDeadlines   Boolean @default(true)
+  quizAvailable         Boolean @default(true)
+  gradeReleased         Boolean @default(true)
+  
+  // Progress notifications
+  milestoneAchieved     Boolean @default(true)
+  certificateIssued     Boolean @default(true)
+  courseCompletion      Boolean @default(true)
+  
+  // Social notifications
+  newComment            Boolean @default(true)
+  newReply              Boolean @default(false)
+  instructorMessage     Boolean @default(true)
+  
+  // System notifications
+  systemAnnouncements   Boolean @default(true)
+  securityAlerts        Boolean @default(true)
+  
+  // Delivery preferences
+  emailNotifications    Boolean @default(true)
+  pushNotifications     Boolean @default(true)
+  inAppNotifications    Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Notification history for users
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?            // Additional data (courseId, assignmentId, etc.)
+  
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  
+  createdAt DateTime         @default(now())
+  
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// Notification types enum
+enum NotificationType {
+  COURSE_NEW_CONTENT
+  COURSE_UPDATE
+  COURSE_SCHEDULE_CHANGE
+  ASSIGNMENT_DEADLINE
+  QUIZ_AVAILABLE
+  GRADE_RELEASED
+  MILESTONE_ACHIEVED
+  CERTIFICATE_ISSUED
+  COURSE_COMPLETED
+  NEW_COMMENT
+  NEW_REPLY
+  INSTRUCTOR_MESSAGE
+  SYSTEM_ANNOUNCEMENT
+  SECURITY_ALERT
+}

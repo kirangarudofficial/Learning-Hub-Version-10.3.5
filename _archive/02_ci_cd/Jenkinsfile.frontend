@@ -1,0 +1,22 @@
+/**
+ * Jenkinsfile for Frontend Deployment
+ * Version: 2.0 (Updated January 2026)
+ * Uses shared library for deployment with proper error handling
+ */
+@Library('microservices-deployment') _
+
+// Configuration parameters
+def frontendConfig = [
+    nodeVersion: '22',  // Updated to Node 22 LTS (2026)
+    buildDir: 'dist',
+    registry: env.DOCKER_REGISTRY ?: 'docker.io',
+    registryCredentials: 'docker-registry-credentials',  // Jenkins credential ID
+    imageName: 'learning-hub-frontend',
+    tag: "v1.0.${BUILD_NUMBER}",
+    environment: params.ENVIRONMENT ?: 'staging',
+    runTests: true,
+    runLint: true
+]
+
+// Deploy frontend application
+deployFrontend(frontendConfig)

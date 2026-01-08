@@ -1,0 +1,285 @@
+// Schema updates for new services
+
+// Assessment Service Models
+enum QuestionType {
+  MULTIPLE_CHOICE
+  SINGLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+  MATCHING
+  FILL_BLANK
+}
+
+enum AssessmentType {
+  QUIZ
+  ASSIGNMENT
+  EXAM
+  PRACTICE
+}
+
+enum AssessmentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Assessment {
+  id           String           @id @default(cuid())
+  title        String
+  description  String?
+  type         AssessmentType
+  status       AssessmentStatus @default(DRAFT)
+  timeLimit    Int?             // in minutes
+  passingScore Int              @default(70) // percentage
+  maxAttempts  Int              @default(1)
+  shuffleQuestions Boolean      @default(false)
+  showCorrectAnswers Boolean    @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Relations
+  courseId     String?
+  moduleId     String?
+  lessonId     String?
+  questions    Question[]
+  attempts     AssessmentAttempt[]
+}
+
+model Question {
+  id           String       @id @default(cuid())
+  type         QuestionType
+  content      String       // The question text
+  options      String[]     // For multiple choice, single choice, matching
+  correctAnswer String      // JSON string for complex answers
+  explanation  String?
+  points       Int          @default(1)
+  order        Int          @default(0)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  assessment   Assessment   @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessmentId String
+  answers      Answer[]
+}
+
+model AssessmentAttempt {
+  id           String       @id @default(cuid())
+  startedAt    DateTime     @default(now())
+  completedAt  DateTime?
+  score        Float?
+  passed       Boolean?
+  timeSpent    Int?         // in seconds
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  assessment   Assessment   @relation(fields: [assessmentId], references: [id])
+  assessmentId String
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
+  answers      Answer[]
+}
+
+model Answer {
+  id           String       @id @default(cuid())
+  value        String       // JSON string for complex answers
+  isCorrect    Boolean?
+  pointsEarned Float?
+  feedback     String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  attempt      AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  attemptId    String
+  question     Question     @relation(fields: [questionId], references: [id])
+  questionId   String
+}
+
+// Gamification Service Models
+model UserXP {
+  id           String       @id @default(cuid())
+  totalXP      Int          @default(0)
+  level        Int          @default(1)
+  currentLevelXP Int        @default(0)
+  nextLevelXP  Int          @default(100)
+  streak       Int          @default(0)
+  lastActivityDate DateTime @default(now())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String       @unique
+}
+
+model Badge {
+  id           String       @id @default(cuid())
+  name         String
+  description  String
+  icon         String
+  category     String       // completion, engagement, achievement, social, special
+  rarity       String       // common, rare, epic, legendary
+  xpReward     Int          @default(0)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  userBadges   UserBadge[]
+}
+
+model UserBadge {
+  id           String       @id @default(cuid())
+  earnedAt     DateTime     @default(now())
+  isDisplayed  Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
+  badge        Badge        @relation(fields: [badgeId], references: [id])
+  badgeId      String
+
+  @@unique([userId, badgeId])
+}
+
+model Achievement {
+  id           String       @id @default(cuid())
+  type         String       // first_course, perfect_quiz, week_streak, etc.
+  title        String
+  description  String
+  xpEarned     Int
+  unlockedAt   DateTime     @default(now())
+  isNotified   Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
+}
+
+model Leaderboard {
+  id           String       @id @default(cuid())
+  name         String
+  type         String       // global, course, category, monthly
+  period       String       // all_time, monthly, weekly, daily
+  metric       String       // xp, courses_completed, streak, quiz_score
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  entries      LeaderboardEntry[]
+}
+
+model LeaderboardEntry {
+  id           String       @id @default(cuid())
+  score        Float
+  rank         Int
+  change       Int          // position change from last period
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  leaderboard  Leaderboard  @relation(fields: [leaderboardId], references: [id], onDelete: Cascade)
+  leaderboardId String
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
+
+  @@unique([leaderboardId, userId])
+}
+
+// Certificate Service Models
+model Certificate {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  issueDate      DateTime     @default(now())
+  expiryDate     DateTime?
+  verificationCode String      @unique
+  imageUrl       String?
+  status         String       @default("active") // active, revoked
+  metadata       Json?        // Additional certificate data
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+  course         Course       @relation(fields: [courseId], references: [id])
+  courseId       String
+  template       CertificateTemplate @relation(fields: [templateId], references: [id])
+  templateId     String
+
+  @@unique([userId, courseId])
+}
+
+model CertificateTemplate {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  htmlTemplate   String
+  cssStyles      String?
+  isDefault      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  certificates   Certificate[]
+}
+
+// Review Service - Extend existing Review model
+// The Review model already exists in the schema, but we'll add voting functionality
+
+model ReviewVote {
+  id           String       @id @default(cuid())
+  isHelpful    Boolean
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  review       Review       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reviewId     String
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
+
+  @@unique([reviewId, userId])
+}
+
+// Admin Service - No specific models needed as it interacts with existing models
+// But we might add audit logs for admin actions
+
+model AdminAuditLog {
+  id           String       @id @default(cuid())
+  action       String       // create, update, delete, etc.
+  entityType   String       // user, course, review, etc.
+  entityId     String
+  details      Json?
+  createdAt    DateTime     @default(now())
+
+  // Relations
+  admin        User         @relation(fields: [adminId], references: [id])
+  adminId      String
+}
+
+// Add relations to existing models
+
+model User {
+  // Add these relations to the existing User model
+  userXP        UserXP?
+  userBadges    UserBadge[]
+  achievements  Achievement[]
+  leaderboardEntries LeaderboardEntry[]
+  assessmentAttempts AssessmentAttempt[]
+  certificates  Certificate[]
+  reviewVotes   ReviewVote[]
+  adminLogs     AdminAuditLog[]
+}
+
+model Review {
+  // Add this relation to the existing Review model
+  votes        ReviewVote[]
+}

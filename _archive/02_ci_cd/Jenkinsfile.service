@@ -1,0 +1,27 @@
+/**
+ * Jenkinsfile for Deploying a Specific Microservice
+ * Version: 2.0 (Updated January 2026)
+ * Use this to deploy individual services
+ */
+@Library('microservices-deployment') _
+
+// Validate service name parameter
+if (!params.SERVICE_NAME) {
+    error('SERVICE_NAME parameter is required. Example: user-service, auth-service, course-service')
+}
+
+// Configuration for specific service deployment
+def serviceConfig = [
+    service: params.SERVICE_NAME,
+    nodeVersion: '22',  // Updated to Node 22 LTS (2026)
+    tag: "v1.0.${BUILD_NUMBER}",
+    environment: params.ENVIRONMENT ?: 'staging',
+    registry: env.DOCKER_REGISTRY ?: 'docker.io',
+   registryCredentials: 'docker-registry-credentials',  // Jenkins credential ID
+    runTests: params.RUN_TESTS ?: true,
+    runLint: params.RUN_LINT ?: true,
+    prismaGenerate: true
+]
+
+// Deploy the specified service
+deployService(serviceConfig)
