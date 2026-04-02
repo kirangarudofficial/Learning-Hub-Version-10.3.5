@@ -1,4 +1,4 @@
- PROFESSIONAL PORTFOLIO ENTRY - LearnSphere
+PROFESSIONAL PORTFOLIO ENTRY - LearnSphere
 🎯 Project Title & Tagline
 LearnSphere — Enterprise-Grade Learning Management Platform
 A production-ready, cloud-native SaaS platform delivering scalable microservices architecture with end-to-end DevOps automation
